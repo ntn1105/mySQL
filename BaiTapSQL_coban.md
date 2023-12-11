@@ -147,7 +147,7 @@ ORDER BY created_at DESC;
 ### 23.	Lấy 2 blog, 2 news mà user có id = 1 đã comment:
 ```
 (
-b.content, b.created_at, b.updated_at
+	SELECT 'blog' AS type, b.id, b.category_id, b.user_id, b.title, b.view, b.is_active, b.content, b.created_at, b.updated_at
     FROM blog b
     JOIN comment c ON b.id = c.target_id AND c.target_table = 'blog'
     WHERE c.user_id = 1
@@ -161,6 +161,7 @@ UNION
     WHERE c.user_id = 1
     LIMIT 2
 );
+
 
 ```
 ### 24.	Lấy 1 blog và 1 news có số lượng comment nhiều nhất:

@@ -59,30 +59,51 @@ SELECT AVG(count_cmt) FROM (SELECT COUNT(comment.id) count_cmt FROM blog
 ```
 ### 10.	Lấy Category có tồn tại blog hoặc news đã active (không được lặp lại category):
 ```
+
 SELECT DISTINCT c.*
 FROM category c
-LEFT JOIN blog b ON c.id = b.category_id AND b.is_active = 1
-LEFT JOIN news n ON c.id = n.category_id AND n.is_active = 1
+JOIN blog b ON c.id = b.category_id AND b.is_active = 1 # list as category_blog 
+JOIN news n ON c.id = n.category_id AND n.is_active = 1 # category_blog left join news => category  
 WHERE b.id IS NOT NULL OR n.id IS NOT NULL;
 
+SELECT DISTINCT * FROM category 
+WHERE id IN (SELECT DISTINCT category_id FROM blog WHERE is_active = 1) 
+OR id IN  (SELECT DISTINCT category_id FROM news WHERE is_active = 1);
+
+SELECT DISTINCT * FROM category 
+WHERE id IN (SELECT DISTINCT category_id FROM blog WHERE is_active = 1
+union
+SELECT DISTINCT category_id FROM news WHERE is_active = 1);
 ```
+### 11.Lấy tổng lượt view của từng category thông qua blog và news
+SELECT category_id, SUM(sumview) AS total_views
+FROM (
+    SELECT category_id, SUM(`view`) AS sumview FROM blog GROUP BY category_id
+    UNION 
+    SELECT category_id, SUM(`view`) AS sumview FROM news GROUP BY category_id
+) AS Sum_view
+GROUP BY category_id;
 ### 12.	Lấy blog được tạo bởi user mà user này không có bất kỳ comment ở blog:
 ```
-SELECT b.*
-FROM blog b
-JOIN user u ON b.user_id = u.id
-LEFT JOIN comment c ON b.id = c.target_id AND c.target_table = 'blog' AND c.user_id = u.id
-WHERE c.id IS NULL;
+SELECT * FROM blog WHERE user_id NOT IN 
+	(SELECT distinct user_id FROM `comment` WHERE target_table = 'blog');
 
 ```
 ### 13.	Lấy 5 blog mới nhất và số lượng comment cho từng blog
 ```
 SELECT b.*, COUNT(c.id) AS comment_count
 FROM blog b
-LEFT JOIN comment c ON b.id = c.target_id AND c.target_table = 'blog'
+JOIN comment c ON b.id = c.target_id AND c.target_table = 'blog'
 GROUP BY b.id
-ORDER BY b.created_at DESC
+ORDER BY b.created_at DESC LIMIT 5;
 
+```
+### 14.Lấy 3 User comment đầu tiên trong 5 blogs mới nhất => user information
+```
+SELECT DISTINCT `user`.* FROM `user` WHERE id IN
+	(SELECT distinct `comment`.user_id FROM `comment` 
+	, (SELECT blog.* FROM blog ORDER BY created_at DESC LIMIT 5) as latest_blog 
+    where `comment`.user_id = latest_blog.user_id and target_table= 'blog') LIMIT 3;
 ```
 ### 15.	Update rank user = 2 khi tổng số lượng comment của user > 20:
 ```
@@ -121,6 +142,14 @@ WHERE user_id IN (1, 2, 4) AND is_active = 1
 GROUP BY user_id;
 
 ```
+### 19. 
+```SET @rd = (select id from category order by rand() limit 1);
+(SELECT id, category_id, title FROM blog where category_id = @rd  LIMIT 5)
+	UNION
+(SELECT id, category_id, title FROM news where category_id = @rd LIMIT 5);
+
+select id from category order by rand() limit 1;
+```
 ### 20.	Lấy blog và news có lượt view nhiều nhất:
 ```(
     SELECT 'blog' AS type, id, title, view
@@ -142,6 +171,19 @@ SELECT *
 FROM blog
 WHERE created_at >= NOW() - INTERVAL 3 DAY
 ORDER BY created_at DESC;
+
+```
+###  22.Lấy danh sách user đã comment trong 2 blog mới nhất
+```
+SELECT DISTINCT u.*
+FROM user u
+JOIN comment c ON u.id = c.user_id
+JOIN (
+    SELECT id
+    FROM blog
+    ORDER BY created_at DESC
+    LIMIT 2
+) b ON c.target_table = 'blog' AND c.target_id = b.id;
 
 ```
 ### 23.	Lấy 2 blog, 2 news mà user có id = 1 đã comment:
@@ -236,6 +278,27 @@ FROM follow
 WHERE to_user_id = 1;
 
 ```
+### 29. Lấy số lượng user 1 đang follow
+```
+SELECT COUNT(*) AS followers_count
+FROM follow
+WHERE to_user_id = 1;
+
+```
+### 30.	Lấy 1 comment(id_comment, comment) mới nhất và thông tin user của user đang được follow bởi user 1
+```
+SELECT c.id AS id_comment, c.comment, u.*
+FROM comment c
+JOIN user u ON c.user_id = u.id
+WHERE c.user_id IN (
+    SELECT from_user_id
+    FROM follow
+    WHERE to_user_id = 1
+)
+ORDER BY c.created_at DESC
+LIMIT 1;
+
+```
 ### 31.	Hiển thị một chuổi "PHP Team " + ngày giờ hiện tại (Ex: PHP Team 2017-06-21 13:06:37)
 ```
 SELECT CONCAT('PHP Team ', NOW()) AS result;
@@ -261,4 +324,4 @@ WHERE fullname LIKE '%Khi%';
 
 
 ```
-### Câu chưa làm : 11, 14,19,22,29,34
+### Câu chưa làm :34
